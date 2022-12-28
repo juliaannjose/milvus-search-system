@@ -37,6 +37,7 @@ def parse_arguments():
     parser.add_argument(
         "--model_name",
         type=str,
+        required=True,
         help="name of the nlp model for query embedding",
     )
     args = parser.parse_args()
