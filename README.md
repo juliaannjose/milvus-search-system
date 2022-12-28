@@ -1,7 +1,7 @@
 # Semantic Search System
 This is a working example of a search system that incorporates the context of search queries and documents to produce more relevant search results.
 
-The example in this repository uses the CORD (COVID-19 Open Research Dataset) dataset which is a collection of COVID-19-related scientific papers. 
+The example in this repository uses the [CORD (COVID-19 Open Research Dataset) dataset](https://www.kaggle.com/datasets/allen-institute-for-ai/CORD-19-research-challenge) which is a collection of COVID-19-related scientific papers. 
 ## Setting up the Backend of the Search System
 
 ### 1. Download the dataset (metadata.csv) from [here](https://www.kaggle.com/datasets/allen-institute-for-ai/CORD-19-research-challenge?select=metadata.csv) and place it in /data/raw/metadata.csv 
