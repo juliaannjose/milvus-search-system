@@ -57,8 +57,8 @@ def preprocess_dataset(df):
         # we're creating embeddings based on title + abstract fields
         # so, first filter out rows where both fields are empty
         df = df.filter((df.title.isNotNull()) | (df.abstract.isNotNull()))
-        # create a new column that is a "title + abstract" data field
-        df = df.withColumn("title_and_abstract", concat_ws(". ", df.title, df.abstract))
+        # create a new column that contains "title + abstract" data field
+        df = df.withColumn("embedding_text", concat_ws(". ", df.title, df.abstract))
 
         print(f"Preprocessed Dataset Successfully. Df has {df.count()} records\n")
         return df

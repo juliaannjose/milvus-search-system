@@ -19,6 +19,7 @@ def search_engine():
         search_param = {
             "query": query,
             "no_of_results": no_of_results,
+            "model_name": "multi-qa-MiniLM-L6-cos-v1",  # hardcoding this for now
         }
         with st.spinner("Searching..."):
             articles = get_articles(search_param=search_param)

@@ -34,12 +34,8 @@ def build(arguments, spark_context, spark_sql):
 
     # variables
     _PATH_TO_DATA = arguments["data_path"]
-    _NLP_MODEL_NAME = (
-        arguments["model_name"]
-        if "model_name" in arguments
-        else "multi-qa-MiniLM-L6-cos-v1"
-    )  # this arg is optional and has a default value
-    _MILVUS_COLLECTION_NAME = _POSTGRES_TABLE_NAME = "covid_search"
+    _NLP_MODEL_NAME = arguments["model_name"]
+    _MILVUS_COLLECTION_NAME = _POSTGRES_TABLE_NAME = "sem_search"
     _MILVUS_INDEX_NAME = "Embedding"
     _MILVUS_INDEX_PARAM = {
         "metric_type": "IP",  # IP for inner product and L2 for euclidean
@@ -54,7 +50,7 @@ def build(arguments, spark_context, spark_sql):
         dense_vectors = generate_embeddings(
             spark_context=spark_context,
             df=df,
-            column_name="title_and_abstract",
+            column_name="embedding_text",
             model_name=_NLP_MODEL_NAME,
         )
 

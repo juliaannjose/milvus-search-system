@@ -13,14 +13,15 @@ from src.tasks.build import build
 
 def parse_arguments():
     """
-    Pass the path to the dataset, and the name of the
-    NLP model for query embedding generation
+    Use this function to pass the path to the dataset, and the name of the
+    NLP model for vector embedding generation
 
     Returns
     -------
     args : dict
-        a dict contaning argument paramters
-        {"data_path":"","model_name":""}
+        a dict contaning build paramters
+        { "data_path":  "/abs/path/to/data.csv",
+          "model_name":  "multi-qa-MiniLM-L6-cos-v1" }
 
     """
     import argparse
@@ -30,13 +31,12 @@ def parse_arguments():
         "--data_path",
         type=str,
         required=True,
-        help=" absolute path to your input csv file",
+        help="absolute path to input csv file",
     )
     parser.add_argument(
         "--model_name",
         type=str,
-        default="multi-qa-MiniLM-L6-cos-v1",
-        help=" name of the nlp model you want to use for embeddings generation",
+        help="name of the nlp model for embeddings generation",
     )
     args = parser.parse_args()
     return vars(args)

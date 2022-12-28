@@ -29,14 +29,10 @@ def inference(arguments):
 
     """
     # variables
-    _MILVUS_COLLECTION_NAME = _POSTGRES_TABLE_NAME = "covid_search"
+    _MILVUS_COLLECTION_NAME = _POSTGRES_TABLE_NAME = "sem_search"
     _MILVUS_INDEX_NAME = "Embedding"
     _MILVUS_SEARCH_PARAM = {"metric_type": "IP", "params": {"nprobe": 128}}
-    _NLP_MODEL_NAME = (
-        arguments["model_name"]
-        if "model_name" in arguments
-        else "multi-qa-MiniLM-L6-cos-v1"
-    )  # this arg is optional and has a default value
+    _NLP_MODEL_NAME = arguments["model_name"]
     _NO_OF_RESULTS = (
         arguments["no_of_results"] if "no_of_results" in arguments else 10
     )  # this arg is optional and has a default value
