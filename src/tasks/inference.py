@@ -7,8 +7,7 @@ Use this function for inference purposes.
 """
 
 from src.postgres.helpers import postgres_fetch_metadata
-from src.milvus.helpers import milvus_query_results, milvus_query_results_openai
-from src.model.helpers import generate_prompt_with_context, prompt_model
+from src.milvus.helpers import milvus_query_results
 
 
 def inference(arguments):
@@ -38,11 +37,8 @@ def inference(arguments):
         arguments["no_of_results"] if "no_of_results" in arguments else 10
     )  # this arg is optional and has a default value
     _QUERY = arguments["query"]
-    
-    import openai
-    from openai import OpenAI
-    milvus_results = milvus_query_results_openai(
-        OpenAI(api_key="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"),
+
+    milvus_results = milvus_query_results(
         collection_name=_MILVUS_COLLECTION_NAME,
         index_name=_MILVUS_INDEX_NAME,
         query=_QUERY,
@@ -53,10 +49,4 @@ def inference(arguments):
     postgres_results = postgres_fetch_metadata(
         milvus_results=milvus_results, table_name=_POSTGRES_TABLE_NAME
     )
-
-    #prompt stuff starts here
-    prompt = generate_prompt_with_context(postgres_results, _QUERY)
-
-    model_response = prompt_model(prompt)
-
-    return model_response
+    return postgres_results

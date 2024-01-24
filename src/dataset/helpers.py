@@ -1,28 +1,30 @@
 """
 This module has functions to:
-1. load a csv file into a pandas dataframe
-2. preprocess a pandas dataframe 
+1. load a csv file into a pyspark dataframe
+2. preprocess a pyspark dataframe 
 """
+from pyspark.sql.functions import concat_ws
 
-import pandas as pd
 
-def load_dataset(filepath):
+def load_dataset(spark, filepath):
     """
-    This function loads the dataset into a pandas df.
+    This function loads the dataset into a spark df.
 
     Parameters
     ----------
+    spark: pyspark.sql.context.SQLContext
+        the spark SQLContext used to read the csv
     filepath : string
         path to dataset
 
     Returns
     -------
-    df : pd.DataFrame
+    df : pyspark.sql.dataframe.DataFrame
         csv file loaded into a df
 
     """
     try:
-        df = pd.read_csv(filepath,header=0)
+        df = spark.read.csv(filepath, header=True, inferSchema=True)
         print("Dataset Loaded Successfully\n")
         return df
     except Exception as e:
@@ -32,33 +34,31 @@ def load_dataset(filepath):
 
 def preprocess_dataset(df):
     """
-    This function preprocesses a pandas dataframe
+    This function preprocesses a pyspark dataframe
     by keeping only the required columns and
     filtering out null rows in the column that
-    embedding generation is based on. 
-    In this case, the required columns are title & abstract.
+    embedding generation is based on.
 
     Parameters
     ----------
-    df : pd.DataFrame
+    df : pyspark.sql.dataframe.DataFrame
         csv file loaded into a df
 
     Returns
     -------
-    df : pd.DataFrame
+    df : pyspark.sql.dataframe.DataFrame
         the preprocessed dataframe
     """
     try:
         # keep only necessary columns
         cols_to_keep = ["title", "abstract", "authors", "url"]
-        df = df[cols_to_keep]
+        df = df[[cols_to_keep]]
 
         # we're creating embeddings based on title + abstract fields
         # so, first filter out rows where both fields are empty
-        df = df[df.title.notna() | df.abstract.notna()]
-
+        df = df.filter((df.title.isNotNull()) | (df.abstract.isNotNull()))
         # create a new column that contains "title + abstract" data field
-        df['embedding_text'] = (' ' + df['title']).fillna('') + (' ' + df['abstract']).fillna('')
+        df = df.withColumn("embedding_text", concat_ws(". ", df.title, df.abstract))
 
         print(f"Preprocessed Dataset Successfully. Df has {df.count()} records\n")
         return df

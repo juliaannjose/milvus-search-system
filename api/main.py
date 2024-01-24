@@ -11,7 +11,7 @@ def search_engine():
     query = st.text_input("Search for an article")
     # milvus search limit - 16384
     no_of_results = st.slider(
-        "number of search results", min_value=1, max_value=16384, value=5
+        "number of search results", min_value=1, max_value=16384, value=50
     )
     if query:
         txt = f'<p style="font-style:italic;color:gray;">Showing top {no_of_results} related articles</p>'
@@ -19,7 +19,7 @@ def search_engine():
         search_param = {
             "query": query,
             "no_of_results": no_of_results,
-            "model_name": "text-embedding-ada-002",  # hardcoding this for now
+            "model_name": "multi-qa-MiniLM-L6-cos-v1",  # hardcoding this for now
         }
         with st.spinner("Searching..."):
             articles = get_articles(search_param=search_param)

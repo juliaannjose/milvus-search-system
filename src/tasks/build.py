@@ -8,14 +8,14 @@ Use this function when you want to "build" and set up the
 backend of your search system.
 
 """
-from openai import OpenAI
 
 from src.dataset.helpers import load_dataset, preprocess_dataset
-from src.model.helpers import generate_openai_embeddings
+from src.model.helpers import generate_embeddings
 from src.milvus.helpers import milvus_collection_creation, milvus_insert_into_db
 from src.postgres.helpers import postgres_table_creation, postgres_insert_into_table
 
-def build(arguments):
+
+def build(arguments, spark_context, spark_sql):
     """
     This function loads data into Milvus and
     Postgres. This is the offline part of this
@@ -31,14 +31,10 @@ def build(arguments):
         the spark SQLContext used to read the csv
 
     """
-    
-    # openai.api_key = "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"
 
     # variables
     _PATH_TO_DATA = arguments["data_path"]
     _NLP_MODEL_NAME = arguments["model_name"]
-    _OPENAI_KEY = arguments['openai_api_key']
-
     _MILVUS_COLLECTION_NAME = _POSTGRES_TABLE_NAME = "sem_search"
     _MILVUS_INDEX_NAME = "Embedding"
     _MILVUS_INDEX_PARAM = {
@@ -48,31 +44,31 @@ def build(arguments):
     }
 
     try:
-        df = load_dataset(filepath=_PATH_TO_DATA)
+        df = load_dataset(spark=spark_sql, filepath=_PATH_TO_DATA)
         df = preprocess_dataset(df=df)
 
-        dense_vectors = generate_openai_embeddings(openai_api_key=_OPENAI_KEY,df=df, column_name="embedding_text", model_name=_NLP_MODEL_NAME)
+        dense_vectors = generate_embeddings(
+            spark_context=spark_context,
+            df=df,
+            column_name="embedding_text",
+            model_name=_NLP_MODEL_NAME,
+        )
 
         milvus_collection_creation(
             collection_name=_MILVUS_COLLECTION_NAME,
             index_name=_MILVUS_INDEX_NAME,
             index_param=_MILVUS_INDEX_PARAM,
         )
-
         milvus_ids = milvus_insert_into_db(
             collection_name=_MILVUS_COLLECTION_NAME, dense_vectors=dense_vectors
         )
-
         postgres_table_creation(table_name=_POSTGRES_TABLE_NAME)
-
         postgres_insert_into_table(
             table_name=_POSTGRES_TABLE_NAME,
             df=df,
             corresponding_milvus_ids=milvus_ids,
         )
-
         print("Pushed Data to Milvus and Postgres\n")
-
     except Exception as e:
         print("Failed to Push Data into Milvus and Postgres\n")
         print(e)

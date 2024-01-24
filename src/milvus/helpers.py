@@ -46,7 +46,7 @@ def milvus_collection_creation(collection_name, index_name, index_param):
     # define key and vector index schema
     key = FieldSchema(name="ID", dtype=DataType.INT64, is_primary=True, auto_id=True)
     field = FieldSchema(
-        name=index_name, dtype=DataType.FLOAT_VECTOR, dim=1536, description="vector"
+        name=index_name, dtype=DataType.FLOAT_VECTOR, dim=384, description="vector"
     )
     schema = CollectionSchema(fields=[key, field], description="embedding collection")
     # create collection
@@ -97,8 +97,7 @@ def milvus_insert_into_db(collection_name, dense_vectors):
     return milvus_ids
 
 
-def milvus_query_results_openai(
-    openai_api_key,
+def milvus_query_results(
     collection_name,
     index_name,
     query,
@@ -111,8 +110,6 @@ def milvus_query_results_openai(
 
     Parameters
     ----------
-    openai_api_key : string
-        openai api key
     collection_name : string
         name of the collection
     index : string
@@ -133,19 +130,15 @@ def milvus_query_results_openai(
         a list of tuples containing milvus id and distance of the search result
     """
     from pymilvus import Collection
-    from openai import OpenAI
+    from sentence_transformers import SentenceTransformer
 
-    client = OpenAI(api_key=openai_api_key)
-    
-    # obtain query embedding from OpenAI model
-    text = query.replace("\n", " ")
-    query_embedding = client.embeddings.create(input = [text], model=model_name).data[0].embedding 
-
+    model = SentenceTransformer(model_name)
     milvus_connect()
     collection = Collection(collection_name)
+    # encoding the query
+    query_embedding = model.encode(query)
     # loading collection
     collection.load()
-
     # performing a vector search
     search_results = collection.search(
         data=[query_embedding],
@@ -154,5 +147,4 @@ def milvus_query_results_openai(
         limit=k,
         expr=None,
     )[0]
-
     return search_results

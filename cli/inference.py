@@ -1,5 +1,5 @@
 """
-Use this module to perform a search against the RAG system
+Use this module to perform a search against the search system
 
 $ python cli/inference.py --query "effect of face coverings for covid" --no_of_results 10 --model_name "multi-qa-MiniLM-L6-cos-v1"
 

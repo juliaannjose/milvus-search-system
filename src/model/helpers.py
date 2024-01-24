@@ -1,96 +1,91 @@
 """
 This module has functions to:
-- generate embeddings for vector search using OpenAI models
-- generate a prompt template using context and user query
-- openAI chat completion function
+1. load an NLP model and broadcast it on all spark nodes
+2. generate embeddings for a pyspark df
 """
 
 
-def generate_openai_embeddings(openai_api_key, df, column_name, model_name):
+def nlp_model_load_and_broadcast(spark_context, model_name):
     """
-    Given an OpenAI model, this function uses their embeddings.create()
-    function to generate embeddings for texts.
+    This function loads the nlp model and
+    broadcasts it on all nodes
+
+    Parameters
+    ----------
+    model_name : string
+        name of the nlp model
+        eg: multi-qa-MiniLM-L6-cos-v1, all-mpnet-base-v2
+
+    spark_context : pyspark.context.SparkContext
+
+    Returns
+    -------
+    bc_model : pyspark.Broadcast
+        the broadcasted object
     """
 
+    from sentence_transformers import SentenceTransformer
+
+    # load the model
+    model = SentenceTransformer(model_name)
+    # broadcast the model
+    try:
+        bc_model = spark_context.broadcast(model)
+        print(f"Broadcasted model successfully. Model summary: {bc_model.value}\n")
+        return bc_model
+    except Exception as e:
+        print("Broadcast unsuccessful\n")
+        print(e)
+
+
+def generate_embeddings(spark_context, df, column_name, model_name):
+    """
+    This function generates embeddings for a column in the df
+    with the help of a pyspark UDF.
+
+    Parameters
+    ----------
+    df : pyspark.sql.dataframe.DataFrame
+        the dataframe
+    column_name : string
+        the name of the column you want the embeddings for
+    model_name : string
+        name of the nlp model
+
+    Returns
+    -------
+    dense_vectors : list(numpy.ndarray)
+        list of dense vectors corresponding to each row in the df
+    """
     import time
     import numpy as np
-    from openai import OpenAI
-    
-    try:
-        client = OpenAI(api_key=openai_api_key)
-        
-        embeddings_list = [] #list of all embeddings
-        def get_embeddings(text, model_name="text-embedding-ada-002"):
-            text = text.replace("\n", " ")
-            return client.embeddings.create(input = [text], model=model_name).data[0].embedding
+    import pyspark.sql.functions as f
+    from pyspark.sql.types import ArrayType, FloatType
 
-        # embedding generation time over whole corpus
-        start_time = time.time()
-        for index, row in df.iterrows():
-            embedding = get_embeddings(text=row['embedding_text'])
-            embeddings_list.append(np.asarray(embedding))
-        end_time = time.time()
-        total = end_time - start_time
-        print(f"Successfully generated embeddings in {total} seconds\n")
+    bc_model = nlp_model_load_and_broadcast(spark_context, model_name)
 
-        dense_vectors = embeddings_list #list of np.array vectors
-        return dense_vectors
-    except Exception as e:
-        print ("Embedding generation failed")
-        print (e)
-
-
-
-def generate_prompt_with_context(top_k_context, query):
-    """
-    Given the top k content obtained from the IR part
-    of this system, we now use this content as additional
-    context to the chat generation system. 
-
-    This function concatenates top k content with user query."""
-
-    try:
-        context = ""
-        users_query = query
-
-        # concatenate the "abstracts" of top k articles
-        for id, value in top_k_context.items():
-            if value['abstract'] is not None:
-                context = context + "\n" + value['abstract'] 
-        
-        # using this context, ask it to generate an answer to user's query
-        prompt = f"""Answer the following query using only the given context. 
-        
-        Context: {context}
-        
-        Query: {users_query}
+    def get_embeddings(sentence):
         """
-        return prompt
+        This UDF generates embeddings for a given sentence
+        """
+        sentence_embeddings = bc_model.value.encode(sentence)
+        return sentence_embeddings.tolist()
 
-    except Exception as e: 
-        print ('Failed to generate prompt')
-        print (e)
+    # convert the python fn "get_embeddings(sentence)" to pyspark udf
+    emb_udf = f.udf(get_embeddings, ArrayType(FloatType()))
+    # use the udf to create embeddings for all the rows in the df
+    df_with_embeddings = df.withColumn("embedding", emb_udf(f.col(column_name)))
+    # convert the df 'embeddings' column to a python list to be used by milvus later
+    # this step takes a while. ~ 47 minutes for 1.06 mil titles.
+    # time it to get "speed" of embedding generation
+    start_time = time.time()
+    embeddings_list = list(
+        df_with_embeddings.select("embedding").toPandas()["embedding"]
+    )
+    end_time = time.time()
+    total = end_time - start_time
+    print(f"Successfully generated embeddings in {total} seconds\n")
 
-
-
-def prompt_model(prompt, openai_api_key):
-    """
-    This function calls OpenAI's chat.completion() function
-    to generate text, given a prompt"""
-    
-    from openai import OpenAI
-
-    client = OpenAI(api_key=openai_api_key)
-
-    try:
-        response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
-        )
-
-        return response.choices[0].message.content
-    except Exception as e: 
-        print ('Failed to generate response from the model')
-        print (e)
+    # converting list of lists to list of np.arrays (aka dense vectors) for milvus
+    dense_vectors = list(np.asarray(embeddings_list))
+    return dense_vectors

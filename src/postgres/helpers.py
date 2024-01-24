@@ -35,9 +35,6 @@ def postgres_table_creation(table_name):
     """
     connection, cursor = postgres_connect()
     try:
-        delete_query = "drop table " + table_name
-        cursor.execute(delete_query)
-        connection.commit()
         create_query = (
             "create table if not exists "
             + table_name
@@ -62,8 +59,8 @@ def postgres_insert_into_table(table_name, df, corresponding_milvus_ids):
     ----------
     table_name : string
         name of the postgres table
-    df : pd.DataFrame
-        your input dataset (pandas dataframe)
+    df : pyspark.sql.dataframe.DataFrame
+        your input dataset (dataframe)
     corresponding_milvus_ids : list
         a list containing ids corresponding to milvus vectors
 
@@ -73,10 +70,10 @@ def postgres_insert_into_table(table_name, df, corresponding_milvus_ids):
 
     connection, cursor = postgres_connect()
     # convert all these pyspark df columns into lists
-    titles = list(df["title"].values)
-    abstract = list(df["abstract"].values)
-    authors = list(df["authors"].values)
-    url = list(df["url"].values)
+    titles = list(df.select("title").toPandas()["title"])
+    abstract = list(df.select("abstract").toPandas()["abstract"])
+    authors = list(df.select("authors").toPandas()["authors"])
+    url = list(df.select("url").toPandas()["url"])
 
     # create a temp file which we will use to copy data into postgres table
     temp_data_path = "data/artifacts/postgres_table.csv"
@@ -123,26 +120,14 @@ def postgres_fetch_metadata(milvus_results, table_name):
 
     Returns
     -------
-    postgres_result : dict(dict)
-        a dict of dict containing title,
-        abstract, authors, url 
-        {"0":
-            {"title":"",
-            "abstract":"",
-            ...
-            ...
-            },
-        "1":
-            {...}
-        }
-
+    postgres_result : list(list)
+        a list of lists containing milvus distance, title,
+        abstract, authors, url
 
     """
     connection, cursor = postgres_connect()
-
-    # dict of dict containing title, abstract, authors, url for each result row
-    postgres_result = {}
-
+    # list of lists containing cosine similarity distance, title, abstract, authors, url for each result row
+    postgres_result = []
     milvus_result_ids = [result.id for result in milvus_results]
     fetch_query = (
         "select title, abstract, authors, url from "
@@ -151,14 +136,7 @@ def postgres_fetch_metadata(milvus_results, table_name):
     )
     cursor.execute(fetch_query, (milvus_result_ids,))
     all_rows = cursor.fetchall()
-
-    for id, rows in enumerate(all_rows):
-        id_result = {}
+    for rows in all_rows:
         if len(rows):
-            id_result['title'] = rows[0]
-            id_result['abstract'] = rows[1]
-            id_result['authors'] = rows[2]
-            id_result['url'] = rows[3]
-            postgres_result[id] = id_result
-            
+            postgres_result.append([rows[0], rows[1], rows[2], rows[3]])
     return postgres_result
