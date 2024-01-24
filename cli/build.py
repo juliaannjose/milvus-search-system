@@ -1,12 +1,17 @@
 """
-Use this module to setup the backend of your search system.
-Use this module to load and push your data into 
-Milvus & Postgres db after starting your Milvus and Postgres servers
+Use this module to setup the backend of your RAG search system.
+The setup includes: 
+  - loading dataset
+  - preprocessing
+  - embedding generation
+  - ingesting embeddings to milvus
+  - ingesting metadata to postgres
 
-$ python cli/build.py --data_path "/abs/path/to/data.csv" --model_name "multi-qa-MiniLM-L6-cos-v1"
+Note: be sure to use this script *after* starting your Milvus & Postgres servers
+
+$ python cli/build.py --data_path "/abs/path/to/data.csv" --model_name "text-embedding-ada-002"
 
 """
-import pyspark
 
 from src.tasks.build import build
 
@@ -14,14 +19,14 @@ from src.tasks.build import build
 def parse_arguments():
     """
     Use this function to pass the path to the dataset, and the name of the
-    NLP model for vector embedding generation
+    OpenAI NLP model for vector embedding generation
 
     Returns
     -------
     args : dict
         a dict contaning build paramters
         { "data_path":  "/abs/path/to/data.csv",
-          "model_name":  "multi-qa-MiniLM-L6-cos-v1" }
+          "model_name":  "text-embedding-ada-002" }
 
     """
     import argparse
@@ -39,18 +44,17 @@ def parse_arguments():
         required=True,
         help="name of the nlp model for embeddings generation",
     )
+    parser.add_argument(
+        "--openai_api_key",
+        type=str,
+        required=True,
+        help="enter your OpenAI api key"
+    )
     args = parser.parse_args()
     return vars(args)
 
 
 if __name__ == "__main__":
-    conf = pyspark.SparkConf().setAppName("bd_project")
-    conf.set("spark.driver.memory", "8g")
-    conf.set("spark.worker.timeout", "10000000")
-    conf.set("spark.driver.maxResultSize", "0")
-    conf.set("spark.executor.memory", "8g")
-    sc = pyspark.SparkContext(conf=conf)
-    spark = pyspark.SQLContext.getOrCreate(sc)
 
     arguments = parse_arguments()
-    build(arguments=arguments, spark_context=sc, spark_sql=spark)
+    build(arguments=arguments)
